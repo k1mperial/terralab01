@@ -8,7 +8,7 @@ module "vpc" {
   source       = "./modules/vpc"
   vpc_cidr     = "192.168.0.0/16"
   public_cidr  = "192.168.1.0/24"
-  private_cidr = "192.168.2.0/24"
+  private_cidr = ["192.168.2.0/24", "192.168.3.0/24"]
 }
 
 #Create EC2 instances for our nginx web servers
@@ -32,12 +32,12 @@ resource "aws_instance" "web" {
   count = length(var.public_instance_ips)
 }
 
-#Create an instance in the private subnet
+#Create an EC2 instance in the first private subnet
 resource "aws_instance" "privateVM" {
   ami                         = var.ami
   instance_type               = var.instance_type
   key_name                    = var.key_name
-  subnet_id                   = module.vpc.private_subnet_id
+  subnet_id                   = element(module.vpc.private_subnet_id, 0)
   private_ip                  = element(var.private_instance_ips, count.index)
   associate_public_ip_address = false
 
@@ -46,24 +46,24 @@ resource "aws_instance" "privateVM" {
   ]
 
   tags = {
-    Name = "privateVM-${format("%03d", count.index + 1)}"
+    Name = "privateVM-${format("%02d", count.index + 1)}"
   }
 
   count = length(var.private_instance_ips)
 }
 
-#Create a DB Subnet Group in the private subnet
+#Create a DB Subnet Group 
 resource "aws_db_subnet_group" "privatedb" {
   name       = "privatedb"
-  subnet_ids = [module.vpc.private_subnet_id]
-
+  subnet_ids = [module.vpc.private_subnet_id[0], module.vpc.private_subnet_id[1]]
+  
   tags = {
     Name = "My Private DB subnet group"
   }
 }
 
 
-#Create an RDS DB in the private subnet
+#Create an RDS DB in the first private subnet
 resource "aws_db_instance" "privateRDS" {
   allocated_storage    = 20
   storage_type         = "gp2"
@@ -75,9 +75,11 @@ resource "aws_db_instance" "privateRDS" {
   password             = "foobarbaz"
   parameter_group_name = "default.mysql5.7"
   port                 = "3306"
+  multi_az             = false
+  final_snapshot_identifier = "fooDB"
   db_subnet_group_name = aws_db_subnet_group.privatedb.id
   vpc_security_group_ids = [
-    aws_security_group.privateSG.id,
+    aws_security_group.privateSG.id
   ]
 }
 

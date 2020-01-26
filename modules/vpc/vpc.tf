@@ -30,37 +30,34 @@ resource "aws_nat_gateway" "terraformnatgw" {
   }
 }
 
+#Declare the data source for AZ
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
 #Create Public subnet
 resource "aws_subnet" "publicsubnet" {
   vpc_id     = aws_vpc.terraformvpc.id
   cidr_block = var.public_cidr
+  availability_zone = data.aws_availability_zones.available.names[0]
 
   tags = {
     Name = "publicsubnet"
   }
 }
 
-#Create Private subnet
+#Create 2 Private subnets
 resource "aws_subnet" "privatesubnet" {
+  count      = length(var.private_cidr)
   vpc_id     = aws_vpc.terraformvpc.id
-  cidr_block = var.private_cidr
-  availability_zone = var.RDSregion
+  cidr_block = element(var.private_cidr, count.index)
+  availability_zone  = data.aws_availability_zones.available.names[count.index]
+
+
   tags = {
-    Name = "privatesubnet"
+    Name = "privatesubnet-${format("%02d", count.index + 1)}"
   }
 }
-
-# #Create another Private subnet for the RDS instance
-
-# resource "aws_subnet" "privaterdssubnet" {
-#   vpc_id     = aws_vpc.terraformvpc.id
-#   cidr_block = var.private_cidr
-#   availability_zone = var.RDSregion
-
-#   tags = {
-#     Name = "privaterdssubnet"
-#   }
-# }
 
 
 #Create Public Route Table
@@ -102,8 +99,15 @@ resource "aws_route_table" "privateroute" {
   }
 }
 
-#Associate Private Route to Private Subnet
-resource "aws_route_table_association" "priRT" {
-  subnet_id      = aws_subnet.privatesubnet.id
+#Associate Private Route to Private Subnet 01
+resource "aws_route_table_association" "priRT1" {
+  subnet_id      = aws_subnet.privatesubnet[0].id
+  route_table_id = aws_route_table.privateroute.id
+}
+
+
+#Associate Private Route to Private Subnet 02
+resource "aws_route_table_association" "priRT2" {
+  subnet_id      = aws_subnet.privatesubnet[1].id
   route_table_id = aws_route_table.privateroute.id
 }
