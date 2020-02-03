@@ -99,15 +99,16 @@ resource "aws_route_table" "privateroute" {
   }
 }
 
-#Associate Private Route to Private Subnet 01
-resource "aws_route_table_association" "priRT1" {
-  subnet_id      = aws_subnet.privatesubnet[0].id
+#Associate Private Route to each of the Private Subnets
+resource "aws_route_table_association" "priRT" {
+  count = length(aws_subnet.privatesubnet)
+  subnet_id      = element(aws_subnet.privatesubnet.*.id, count.index)
   route_table_id = aws_route_table.privateroute.id
 }
 
 
-#Associate Private Route to Private Subnet 02
-resource "aws_route_table_association" "priRT2" {
-  subnet_id      = aws_subnet.privatesubnet[1].id
-  route_table_id = aws_route_table.privateroute.id
-}
+# #Associate Private Route to Private Subnet 02
+# resource "aws_route_table_association" "priRT2" {
+#   subnet_id      = aws_subnet.privatesubnet[1].id
+#   route_table_id = aws_route_table.privateroute.id
+# }

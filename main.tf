@@ -11,7 +11,7 @@ module "vpc" {
   private_cidr = ["192.168.2.0/24", "192.168.3.0/24"]
 }
 
-#Create EC2 instances for our nginx web servers
+#Create EC2 instances as nginx web servers in the PUblic subnet
 resource "aws_instance" "web" {
   ami                         = var.ami
   instance_type               = var.instance_type
@@ -42,7 +42,7 @@ resource "aws_instance" "privateVM" {
   associate_public_ip_address = false
 
   vpc_security_group_ids = [
-    aws_security_group.privateSG.id,
+    aws_security_group.privateSG1.id,
   ]
 
   tags = {
@@ -63,7 +63,7 @@ resource "aws_db_subnet_group" "privatedb" {
 }
 
 
-#Create an RDS DB in the first private subnet
+#Create an RDS DB in the private subnet
 resource "aws_db_instance" "privateRDS" {
   allocated_storage    = 20
   storage_type         = "gp2"
@@ -76,10 +76,10 @@ resource "aws_db_instance" "privateRDS" {
   parameter_group_name = "default.mysql5.7"
   port                 = "3306"
   multi_az             = false
-  final_snapshot_identifier = "fooDB"
+  final_snapshot_identifier = "fooDB2"
   db_subnet_group_name = aws_db_subnet_group.privatedb.id
   vpc_security_group_ids = [
-    aws_security_group.privateSG.id
+    aws_security_group.privateSG2.id
   ]
 }
 
@@ -101,7 +101,8 @@ resource "aws_elb" "web" {
   instances = aws_instance.web[*].id
 }
 
-# Create security group for the public subnet
+
+# Create security group for the EC2 instances in the public subnet
 resource "aws_security_group" "publicSG" {
   name        = "publicSG"
   description = "Allow SSH & HTTP access from anywhere"
@@ -131,33 +132,50 @@ resource "aws_security_group" "publicSG" {
 
 }
 
-# Create security group for the first private subnet
-resource "aws_security_group" "privateSG" {
+# Create security group for the EC2 instance in the first private subnet
+resource "aws_security_group" "privateSG1" {
   name        = "privateSG"
-  description = "Allow SSH and mySQL access internally"
+  description = "Allow SSH access internally"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # MySQL access from the VPC
-  ingress {
-    from_port   = 3306
-    to_port     = 3306
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    security_groups = [aws_security_group.publicSG.id]
   }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    security_groups = [aws_security_group.publicSG.id]
   }
 
 }
+
+# Create security group for the RDS DB private subnet
+resource "aws_security_group" "privateSG2" {
+  name        = "privateSG2"
+  description = "Allow mySQL access internally"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    security_groups = [aws_security_group.publicSG.id]
+  }
+
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    security_groups = [aws_security_group.publicSG.id]
+  }
+
+}
+
+
 

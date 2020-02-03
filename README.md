@@ -1,8 +1,6 @@
 # Terraform Lab 1
 
 
-Still working on these 2 items but the terraform file main.tf builds the infrastructure below  <br />
-1. Break up the root module into a separate DB and EC2 module  <br />
-2. I had to create an second (empty) private subnet just to satisfy the requirements for DB subnet groups. I am still trying to find a workaround for this as I want only 1 private subnet
+I am still working to further modularize the terraform file main.tf so that I have an EC2 and RDS module apart from the VPC module. The script currently builds the infrastructure below  <br />
 
 <img src="./myimage.png">
